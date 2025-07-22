@@ -1,55 +1,60 @@
 import discord
 from discord.ext import commands
 from config import token
+import random
+from logic import Pokemon,Wizard,Fighter
 
-# Basit Car sınıfı
-class Car:
-    def __init__(self, color, brand):
-        self.color = color
-        self.brand = brand
+# Bot için yetkileri/intents ayarlama
+intents = discord.Intents.default()  # Varsayılan ayarların alınması
+intents.messages = True              # Botun mesajları işlemesine izin verme
+intents.message_content = True       # Botun mesaj içeriğini okumasına izin verme
+intents.guilds = True                # Botun sunucularla çalışmasına izin verme
 
-    def info(self):
-        return f"🚗 Marka: {self.brand}, Renk: {self.color}"
+# Tanımlanmış bir komut önekine ve etkinleştirilmiş amaçlara sahip bir bot oluşturma
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Bot ayarları
-intents = discord.Intents.default()
-intents.message_content = True
-client = commands.Bot(command_prefix='/', intents=intents)
-
-@client.event
+# Bot çalışmaya hazır olduğunda tetiklenen bir olay
+@bot.event
 async def on_ready():
-    print(f"Giriş yaptı: {client.user}")
+    print(f'Giriş yapıldı:  {bot.user.name}')  # Botun adını konsola çıktı olarak verir
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-    if message.content.startswith(client.command_prefix):
-        await client.process_commands(message)
+# '!go' komutu
+@bot.command()
+async def go(ctx):
+    author = ctx.author.name  # Komutu çağıran kullanıcının adını alır
+    if author not in Pokemon.pokemons:  # Bu kullanıcı için zaten bir Pokémon olup olmadığını kontrol ederiz
+        chance = random.randint(1, 3)  # 1 ile 3 arasında rastgele bir sayı oluştururuz
+        # Rastgele sayıya göre bir Pokémon nesnesi oluştururuz
+        if chance == 1:
+            pokemon = Pokemon(author)  # Standart bir Pokémon oluştururuz
+        elif chance == 2:
+            pokemon = Wizard(author)  # Wizard türünde bir Pokémon oluştururuz
+        elif chance == 3:
+            pokemon = Fighter(author)  # Fighter türünde bir Pokémon oluştururuz
+        await ctx.send(await pokemon.info())  # Pokémon hakkında bilgi göndeririz
+        image_url = await pokemon.show_img()  # Pokémon görüntüsünün URL'sini alırız
+        if image_url:
+            embed = discord.Embed()  # Gömülü bir mesaj (embed) oluştururuz
+            embed.set_image(url=image_url)  # Gömülü mesaja görüntüyü ekleriz
+            await ctx.send(embed=embed)  # Görüntülü gömülü mesajı göndeririz
+        else:
+            await ctx.send("Pokémon görüntüsü yüklenemedi.")  # Görüntü yüklenemezse hata mesajı veririz
     else:
-        await message.channel.send(message.content)
+        await ctx.send("Zaten bir Pokémon oluşturmuşsun.")  # Kullanıcıya zaten bir Pokémon oluşturduğunu bildiririz
 
-@client.command()
-async def about(ctx):
-    await ctx.send('Bu discord.py kütüphanesi ile oluşturulmuş echo-bot!')
-
-@client.command()
-async def info(ctx):
-    await ctx.send(
-        "Komutlar:\n"
-        "- /about: Bot hakkında bilgi\n"
-        "- /info: Komutları gösterir\n"
-        "- /ping: Gecikme\n"
-        "- /car renk marka: Araç bilgisi gösterir"
-    )
-
-@client.command()
-async def ping(ctx):
-    await ctx.send(f"Pong! {round(client.latency * 1000)} ms")
-
-@client.command()
-async def car(ctx, color: str, brand: str):
-    new_car = Car(color, brand)
-    await ctx.send(new_car.info())
-
-client.run(token)
+@bot.command()
+async def attack(ctx):
+    target = ctx.message.mentions[0] if ctx.message.mentions else None  # Mesajda belirtilen kullanıcıyı alırız
+    if target:  # Kullanıcının belirtilip belirtilmediğini kontrol ederiz
+        # Hem saldırganın hem de hedefin Pokémon sahibi olup olmadığını kontrol ederiz
+        if target.name in Pokemon.pokemons and ctx.author.name in Pokemon.pokemons:
+            enemy = Pokemon.pokemons[target.name]  # Hedefin Pokémon'unu alırız
+            attacker = Pokemon.pokemons[ctx.author.name]  # Saldırganın Pokémon'unu alırız
+            result = await attacker.attack(enemy)  # Saldırıyı gerçekleştirir ve sonucu alırız
+            await ctx.send(result)  # Saldırı sonucunu göndeririz
+        else:
+            await ctx.send("Savaş için her iki tarafın da Pokémon sahibi olması gerekir!")  # Katılımcılardan birinin Pokémon'u yoksa bilgilendiririz
+    else:
+        await ctx.send("Saldırmak istediğiniz kullanıcıyı etiketleyerek belirtin.")  # Saldırmak için kullanıcıyı etiketleyerek belirtmesini isteriz
+# Botun çalıştırılması
+bot.run(token)
