@@ -1,30 +1,54 @@
+# logic.py
 import aiohttp
 import random
 import datetime
+from discord import ui, ButtonStyle
 
+# ==== QUIZ SİSTEMİ ====
+class Question:
+    def __init__(self, text, answer_id, *options):
+        self.__text = text
+        self.__answer_id = answer_id
+        self.options = options
+
+    @property
+    def text(self):
+        return self.__text
+
+    def gen_buttons(self):
+        buttons = []
+        for i, option in enumerate(self.options):
+            if i == self.__answer_id:
+                buttons.append(ui.Button(label=option, style=ButtonStyle.success, custom_id=f'correct_{i}'))
+            else:
+                buttons.append(ui.Button(label=option, style=ButtonStyle.danger, custom_id=f'wrong_{i}'))
+        return buttons
+
+quiz_questions = [
+    Question("Kediler onları kimse görmediğinde ne yapar?", 1, "Uyurlar", "Espri yazarlar"),
+    Question("Kediler sevgilerini nasıl ifade ederler?", 0, "Yüksek sesle mırıldanırlar", "Sevimli fotoğraflar", "Havlar"),
+    Question("Kediler hangi kitapları okumayı sever?", 1, "Kişisel gelişim kitapları", "Zaman yönetimi: Günde 18 saat nasıl uyunur"),
+    Question("Kediler en çok neye benzer?", 1, "İnsanlar", "Uzaylılar")
+]
+
+# ==== POKEMON SİSTEMİ ====
 class Pokemon:
     pokemons = {}
 
     def __init__(self, pokemon_trainer):
-        # pokemon_trainer artık discord kullanıcısının ID'si (int)
-        self.pokemon_trainer = pokemon_trainer  
+        self.pokemon_trainer = pokemon_trainer
         self.pokemon_number = random.randint(1, 1000)
         self.name = None
-        self.hp = random.randint(50, 100)    # biraz daha sağlam başlasın diye
-        self.power = random.randint(5, 15)   # biraz daha dengeli güç
+        self.hp = random.randint(50, 100)
+        self.power = random.randint(5, 15)
         self.last_feed_time = datetime.datetime.min
-
-        # Eğer kullanıcı zaten varsa, mevcut nesneyi döndürme zor, onu dışarda main.py'de kontrol ediyoruz
-        # Burada sadece yeni yaratma işlemi yapılır.
 
     @classmethod
     def get_pokemon(cls, trainer_id):
-        # Eğer varsa pokemon döner, yoksa None
         return cls.pokemons.get(trainer_id)
 
     @classmethod
     def create_pokemon(cls, trainer_id, pkmn_type="normal"):
-        # Farklı tipte pokemon yaratma
         if trainer_id in cls.pokemons:
             return cls.pokemons[trainer_id]
 
