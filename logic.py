@@ -1,4 +1,3 @@
-# logic.py
 import aiohttp
 import random
 import datetime
@@ -25,7 +24,7 @@ class Question:
         return buttons
 
 quiz_questions = [
-    Question("Kediler onları kimse görmediğinde ne yapar?", 1, "Uyurlar", "Espri yazarlar"),
+    Question("Kediler onları kimse görmediğinde ne yapar?", 0, "Uyurlar", "Espri yazarlar"),
     Question("Kediler sevgilerini nasıl ifade ederler?", 0, "Yüksek sesle mırıldanırlar", "Sevimli fotoğraflar", "Havlar"),
     Question("Kediler hangi kitapları okumayı sever?", 1, "Kişisel gelişim kitapları", "Zaman yönetimi: Günde 18 saat nasıl uyunur"),
     Question("Kediler en çok neye benzer?", 1, "İnsanlar", "Uzaylılar")
@@ -138,5 +137,3 @@ class Fighter(Pokemon):
     async def feed(self, feed_interval=20, hp_increase=10):
         hp_increase = int(hp_increase / 1.5)
         return await super().feed(feed_interval, hp_increase)
-
-
