@@ -1,19 +1,23 @@
 import discord
 from discord.ext import commands
 from discord import ui, Interaction, ButtonStyle
-from logic import Pokemon, quiz_questions  # logic.py'den import
-from config import token
+from logic import Pokemon, quiz_questions
+from db_manager import DB_Manager
+from config import token, DATABASE
 import random
-from datetime import datetime
 from collections import defaultdict
 
+# ====== VERITABANI ======
+db = DB_Manager(DATABASE)
+db.create_tables()
+db.default_insert()
+
+# ====== DISCORD BOT ======
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# =============== QUIZ SİSTEMİ ===============
-
-# Kullanıcının hangi soruda olduğunu ve puanını tutar
+# ====== QUIZ ======
 user_responses = defaultdict(lambda: {"index": 0, "points": 0})
 
 async def send_question(ctx_or_interaction, user_id):
@@ -37,24 +41,11 @@ async def send_question(ctx_or_interaction, user_id):
             user_responses.pop(user_id, None)
             self.stop()
 
-        # Buton callbackları için dinamik çözüm
-        @ui.button(label="dummy", style=ButtonStyle.secondary, custom_id="dummy", disabled=True)
-        async def dummy(self, interaction: Interaction, button: ui.Button):
-            pass  # Boş, gerçek butonlar dinamik
-
-        async def interaction_item(self, interaction: Interaction):
-            # Bu event discord.py'da yok, biz buton callback yazacağız
-
-            pass
-
     view = QuizView()
 
-    # Burada butonların callbacklerini ayarlıyoruz
-    # Her butona callback ekleyelim:
     for item in view.children:
         async def callback(interaction: Interaction, item=item):
             custom_id = interaction.data["custom_id"]
-            # Doğru mu kontrolü
             if custom_id.startswith("correct"):
                 user_responses[user_id]["points"] += 1
                 await interaction.response.send_message("✅ Doğru cevap!", ephemeral=True)
@@ -70,7 +61,6 @@ async def send_question(ctx_or_interaction, user_id):
                 user_responses.pop(user_id, None)
                 view.stop()
             else:
-                # Yeni soruyu gönder
                 await send_question(interaction, user_id)
 
         item.callback = callback
@@ -86,17 +76,12 @@ async def startquiz(ctx):
     user_responses[user_id] = {"index": 0, "points": 0}
     await send_question(ctx, user_id)
 
-# =============== POKEMON KOMUTLARI ===============
-
-@bot.event
-async def on_ready():
-    print(f"Bot {bot.user} olarak giriş yaptı.")
-
+# ====== POKEMON KOMUTLARI ======
 @bot.command()
 async def start(ctx):
     user_id = ctx.author.id
     if user_id not in Pokemon.pokemons:
-        poke = Pokemon("Pikachu")
+        poke = Pokemon.create_pokemon(user_id)
         Pokemon.pokemons[user_id] = poke
         await ctx.send(f"{ctx.author.mention}, bir Pokémon yakaladın! 🎉")
     else:
@@ -134,15 +119,12 @@ async def feed(ctx):
         await ctx.send("Henüz bir Pokémon'unuz yok.")
 
 @bot.command()
-async def img(ctx):
-    await ctx.send("https://media.giphy.com/media/DRfu7BT8ZK1uo/giphy.gif")
-
-@bot.command()
-async def release(ctx):
+async def status(ctx):
     user_id = ctx.author.id
     if user_id in Pokemon.pokemons:
-        del Pokemon.pokemons[user_id]
-        await ctx.send(f"{ctx.author.mention}, Pokémon'unu doğaya saldın. 🕊️ Elveda...")
+        poke = Pokemon.pokemons[user_id]
+        last_feed = poke.last_feed_time.strftime('%Y-%m-%d %H:%M:%S') if poke.last_feed_time else "Bilinmiyor"
+        await ctx.send(f"📊 **Durum Raporu**\nHP: {poke.hp}\nPower: {poke.power}\nSon Beslenme: {last_feed}")
     else:
         await ctx.send("Henüz bir Pokémon'unuz yok.")
 
@@ -153,18 +135,6 @@ async def heal(ctx):
         poke = Pokemon.pokemons[user_id]
         poke.hp = 100
         await ctx.send(f"🧬 {ctx.author.mention}, Pokémon'unuz tam şarj oldu! HP: 100")
-    else:
-        await ctx.send("Henüz bir Pokémon'unuz yok.")
-
-@bot.command()
-async def status(ctx):
-    user_id = ctx.author.id
-    if user_id in Pokemon.pokemons:
-        poke = Pokemon.pokemons[user_id]
-        last_feed = poke.last_feed_time.strftime('%Y-%m-%d %H:%M:%S') if poke.last_feed_time else "Bilinmiyor"
-        await ctx.send(
-            f"📊 **Durum Raporu**\nHP: {poke.hp}\nPower: {poke.power}\nSon Beslenme: {last_feed}"
-        )
     else:
         await ctx.send("Henüz bir Pokémon'unuz yok.")
 
@@ -182,6 +152,21 @@ async def evolve(ctx):
     else:
         await ctx.send("Henüz bir Pokémon'unuz yok.")
 
+@bot.command()
+async def release(ctx):
+    user_id = ctx.author.id
+    if user_id in Pokemon.pokemons:
+        del Pokemon.pokemons[user_id]
+        await ctx.send(f"{ctx.author.mention}, Pokémon'unu doğaya saldın. 🕊️ Elveda...")
+    else:
+        await ctx.send("Henüz bir Pokémon'unuz yok.")
+
+@bot.command()
+async def img(ctx):
+    await ctx.send("https://media.giphy.com/media/DRfu7BT8ZK1uo/giphy.gif")
+
+@bot.event
+async def on_ready():
+    print(f"Bot {bot.user} olarak giriş yaptı.")
+
 bot.run(token)
-
-
