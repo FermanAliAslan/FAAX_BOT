@@ -1,1 +1,2 @@
-token = "
+token = "BURAYA_DISCORD_TOKENINI_YAZ"
+DATABASE = "projects.db"
